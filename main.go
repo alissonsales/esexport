@@ -91,7 +91,7 @@ func main() {
 			err = processCursor(cursor, outputFile)
 
 			if err != nil {
-				fmt.Printf("Error processing cursor %v: %v\n", ssc, err)
+				fmt.Printf("Error processing cursor %v: %v\n", ID, err)
 			}
 		}(ssc, i)
 	}
@@ -114,9 +114,15 @@ func jsonQuery(query *string) (map[string]interface{}, error) {
 }
 
 func processCursor(ssc *cursor.SlicedScrollCursor, outputFile *os.File) error {
-	for hits, err := ssc.Next(); len(hits) > 0; {
+	for {
+		hits, err := ssc.Next()
+
 		if err != nil {
 			return err
+		}
+
+		if len(hits) == 0 {
+			break
 		}
 
 		if outputFile != nil {
@@ -126,8 +132,6 @@ func processCursor(ssc *cursor.SlicedScrollCursor, outputFile *os.File) error {
 				return err
 			}
 		}
-
-		hits, err = ssc.Next()
 	}
 
 	return nil
@@ -150,47 +154,52 @@ func writeHitsToFile(hits []client.Hit, f *os.File) error {
 }
 
 func printProgress(cursors []*cursor.SlicedScrollCursor, done chan struct{}) {
-	total := 0
-	current := 0
-
+	var total *int
+	var current *int
 timer:
 	for {
-		time.Sleep(500 * time.Millisecond)
+		select {
+		case <-done:
+			break timer
+		default:
+			time.Sleep(500 * time.Millisecond)
+			current, total = processingProgress(cursors)
 
-		currentTemp := 0
-		totalTemp := 0
-
-		for _, cursor := range cursors {
-			select {
-			case <-done:
-				current = total
-			default:
-				if cursor.Total != nil {
-					totalTemp += *cursor.Total
-					currentTemp += *cursor.NumDocsRetrieved
-				} else {
-					// cursor first query still in progress
-					continue timer
-				}
+			if total == nil || current == nil {
+				continue
 			}
 		}
 
-		if totalTemp > total {
-			total = totalTemp
+		percent := 0.0
+
+		if *total > 0 {
+			percent = (float64(*current) / float64(*total)) * 100.0
 		}
 
-		if currentTemp > current {
-			current = currentTemp
-		}
+		fmt.Printf("Progress: [%d/%d] %.0f%%\r", *current, *total, percent)
+	}
 
-		percent := (float64(current) / float64(total)) * 100.0
-		fmt.Printf("Progress: [%d/%d] %.0f%%\r", current, total, percent)
+	if current != nil && total != nil {
+		fmt.Printf("Progress: [%d/%d] %.0f%%\r", *current, *total, 100.0)
+	}
 
-		if total == current {
-			done <- struct{}{}
-			break
+	done <- struct{}{}
+}
+
+func processingProgress(cursors []*cursor.SlicedScrollCursor) (current, total *int) {
+	t := 0
+	c := 0
+
+	for _, cursor := range cursors {
+		if cursor.Total != nil && cursor.NumDocsRetrieved != nil {
+			t += *cursor.Total
+			c += *cursor.NumDocsRetrieved
+		} else {
+			return nil, nil
 		}
 	}
+
+	return &c, &t
 }
 
 func timeTrack(start time.Time, name string) {
