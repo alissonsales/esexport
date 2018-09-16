@@ -52,7 +52,7 @@ There are no options to control:
 * the number of documents returned per query
 * the fields exported/retrieved
 
-Add "source" and "size" directly in your query body to control such things.
+Add `_source` and `size` directly in your query body to control such things.
 
 ## Note
 
@@ -78,4 +78,15 @@ Progress: [276113/278695] 99%
 Cursor 0 took 13.217493396s
 Progress: [278695/278695] 100%
 esexport took 13.560569369s
+```
+
+# Output
+
+To control the fields returned just change your query "_source".
+
+```
+{"_id":"5af4fd9b020bbd8e0369683b","_source":{"group":10}}
+{"_id":"5af4fd9b020bbd8e03696867","_source":{"group":4}}
+{"_id":"5af4fd9b020bbd8e03696873","_source":{"group":1}}
+{"_id":"5af4fd9b020bbd8e036968ab","_source":{"group":2}}
 ```
