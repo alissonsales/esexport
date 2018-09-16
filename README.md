@@ -8,13 +8,14 @@ Also useful to test the speed of scrolling using different combinations of param
 * different slice fields
 * query (size and source)
 
-## Installation
 
-For now use: `go get -u github.com/alissonsales/esexport`
+# Installation
+
+For now you need to install go and use `go get -u github.com/alissonsales/esexport`
 
 TODO: provide binaries on /releases and homebrew formula
 
-## Usage
+# Usage
 
 ```
 Usage: esexport [global flags]
@@ -43,7 +44,7 @@ Examples:
 	esexport -sliceSize 2 -query '{"source":["false"], "size": 1000, "query":{"bool":{"filter":{"term":{"field":"value"}}}}}'
 ```
 
-## Controlling search/scroll behaviour
+# Controlling search/scroll behaviour
 
 There are no options to control:
 
@@ -52,7 +53,7 @@ There are no options to control:
 
 Add "source" and "size" directly in your query body to control such things.
 
-### Note
+## Note
 
 Sliced scrolls where introduced on Elasticsearch 5.
 
@@ -60,7 +61,7 @@ If you point to any cluster still running ES prior to 5 and try to use -sliceSiz
 
 Exporting documents from installations prior to 5 works just fine without the use of -sliceSize.
 
-### Debugging cursors
+# Debugging cursors
 
 Add `ESEXPORTDEBUG=1` to display debug information about the execution.
 
