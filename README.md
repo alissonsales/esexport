@@ -8,6 +8,7 @@ Also useful to test the speed of scrolling using different combinations of param
 * different slice fields
 * query (size and source)
 
+See [Debugging Cursors](#debugging-cursors).
 
 # Installation
 
