@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/alissonsales/esexport.svg?branch=master)](https://travis-ci.org/alissonsales/esexport)
+
 # esexport
 
 Command line tool to export documents from Elasticsearch using sliced scroll.
