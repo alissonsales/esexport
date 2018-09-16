@@ -6,9 +6,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"strings"
+
+	"github.com/alissonsales/esexport/debug"
 )
+
+var debugCursors bool
+
+func init() {
+	debug.Init("ESEXPORTDEBUG")
+}
 
 // A HTTPClient is required to send HTTP requests to Elasticsearch
 type HTTPClient interface {
@@ -28,7 +37,7 @@ type Client struct {
 // Hit represents a returned document from Elasticsearch
 type Hit struct {
 	ID     string                 `json:"_id"`
-	Source map[string]interface{} `json:"_source"`
+	Source map[string]interface{} `json:"_source,omitempty"`
 }
 
 // Hits represents the hits part of a search response
@@ -99,6 +108,12 @@ func (c *Client) Scroll(scrollID string) (scrollResponse *ESSearchResponse, err 
 
 func (c *Client) searchResponse(resp *http.Response) (searchResponse *ESSearchResponse, err error) {
 	if resp.StatusCode != http.StatusOK {
+		if r, e := ioutil.ReadAll(resp.Body); e == nil {
+			fmt.Printf("Bad response content: %s\n", r)
+		} else {
+			fmt.Println("Error reading response:", e)
+		}
+
 		return nil, fmt.Errorf("Unexpected response received: %v", resp.StatusCode)
 	}
 
