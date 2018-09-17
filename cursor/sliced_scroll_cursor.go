@@ -47,9 +47,12 @@ func (ssc *SlicedScrollCursor) Next() (hits []client.Hit, err error) {
 			}
 		})
 		hits, err = ssc.search()
-		debug.Debug(func() {
-			fmt.Printf("Slice %v total: %v\n", ssc.sliceID, *ssc.Total)
-		})
+
+		if ssc.Total != nil {
+			debug.Debug(func() {
+				fmt.Printf("Slice %v total: %v\n", ssc.sliceID, *ssc.Total)
+			})
+		}
 	} else if !ssc.done() {
 		hits, err = ssc.scroll(ssc.lastScrollID)
 	}
