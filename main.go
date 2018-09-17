@@ -19,37 +19,54 @@ Examples:
 	esexport -sliceSize 2 -query '{"source":["false"], "size": 1000, "query":{"bool":{"filter":{"term":{"field":"value"}}}}}'
 `
 
+type cmdOpts struct {
+	host             string
+	query            string
+	routing          string
+	searchContextTTL string
+	index            string
+	docType          string
+	sliceSize        int
+	sliceField       string
+	output           string
+}
+
+func parseOpts() *cmdOpts {
+	opts := &cmdOpts{}
+
+	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	fs.StringVar(&opts.host, "host", "http://localhost:9200", "ES Host")
+	fs.StringVar(&opts.query, "query", "{}", "Query to slice")
+	fs.StringVar(&opts.routing, "routing", "", "Routing passed to the query")
+	fs.StringVar(&opts.searchContextTTL, "searchContextTTL", "1m", "Search context TTL used to search and scroll")
+	fs.StringVar(&opts.index, "index", "", "Index to search (will be appended on the search url)")
+	fs.StringVar(&opts.docType, "type", "", "Document type (will be appended on the search url)")
+	fs.IntVar(&opts.sliceSize, "sliceSize", 1, "Number of slices")
+	fs.StringVar(&opts.sliceField, "sliceField", "", "The field used to slice the query")
+	fs.StringVar(&opts.output, "output", "", "Output file")
+
+	fs.Usage = func() {
+		fmt.Println("Usage: esexport [global flags]")
+		fmt.Printf("\nglobal flags:\n")
+		fs.PrintDefaults()
+		fmt.Println(examples)
+	}
+
+	fs.Parse(os.Args[1:])
+	return opts
+}
+
 func init() {
 	debug.Init("ESEXPORTDEBUG")
 }
 
 func main() {
 	defer timeTrack(time.Now(), "esexport")
-
-	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
-	host := fs.String("host", "http://localhost:9200", "ES Host")
-	query := fs.String("query", "{}", "Query to slice")
-	routing := fs.String("routing", "", "Routing passed to the query")
-	searchContextTTL := fs.String("searchContextTTL", "1m", "Search context TTL used to search and scroll")
-	index := fs.String("index", "", "Index to search (will be appended on the search url)")
-	docType := fs.String("type", "", "Document type (will be appended on the search url)")
-	sliceSize := fs.Int("sliceSize", 1, "Number of slices")
-	sliceField := fs.String("sliceField", "", "The field used to slice the query")
-	output := fs.String("output", "", "Output file")
-
-	fs.Usage = func() {
-		fmt.Println("Usage: esexport [global flags]")
-		fmt.Printf("\nglobal flags:\n")
-		fs.PrintDefaults()
-
-		fmt.Println(examples)
-	}
-
-	fs.Parse(os.Args[1:])
+	opts := parseOpts()
 
 	httpClient := &http.Client{}
-	esClient := client.NewClient(httpClient, *host, *index, *docType, *routing, *searchContextTTL)
-	jsonQuery, err := jsonQuery(query)
+	esClient := client.NewClient(httpClient, opts.host, opts.index, opts.docType, opts.routing, opts.searchContextTTL)
+	jsonQuery, err := jsonQuery(opts.query)
 
 	if err != nil {
 		fmt.Println("Error parsing query:", err)
@@ -58,8 +75,8 @@ func main() {
 
 	var outputFile *os.File
 
-	if *output != "" {
-		outputFile, err = os.OpenFile(*output, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if opts.output != "" {
+		outputFile, err = os.OpenFile(opts.output, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 		defer outputFile.Close()
 
 		if err != nil {
@@ -68,12 +85,12 @@ func main() {
 		}
 	}
 
-	cursors := make([]*cursor.SlicedScrollCursor, *sliceSize)
+	cursors := make([]*cursor.SlicedScrollCursor, opts.sliceSize)
 
 	var wg sync.WaitGroup
 
 	for i := range cursors {
-		ssc, err := cursor.NewSlicedScrollCursor(esClient, i, *sliceSize, *sliceField, jsonQuery)
+		ssc, err := cursor.NewSlicedScrollCursor(esClient, i, opts.sliceSize, opts.sliceField, jsonQuery)
 
 		if err != nil {
 			fmt.Println("Error creating cursor:", err)
@@ -106,9 +123,9 @@ func main() {
 	fmt.Println("\r")
 }
 
-func jsonQuery(query *string) (map[string]interface{}, error) {
+func jsonQuery(query string) (map[string]interface{}, error) {
 	var jsonQuery map[string]interface{}
-	err := json.Unmarshal([]byte(*query), &jsonQuery)
+	err := json.Unmarshal([]byte(query), &jsonQuery)
 
 	return jsonQuery, err
 }
