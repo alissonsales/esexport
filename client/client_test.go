@@ -98,7 +98,7 @@ func TestSearchRequestURL(t *testing.T) {
 			"my_type",
 			"my_routing",
 			"1m",
-			"http://localhost:9200/my_index/my_type/_search?scroll=1m&routing=my_routing",
+			"http://localhost:9200/my_index/my_type/_search?routing=my_routing&scroll=1m",
 		},
 	}
 
