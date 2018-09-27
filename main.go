@@ -65,7 +65,13 @@ func main() {
 	opts := parseOpts()
 
 	httpClient := &http.Client{}
-	esClient := client.NewClient(httpClient, opts.host, opts.index, opts.docType, opts.routing, opts.searchContextTTL)
+	esClient, err := client.NewClient(httpClient, opts.host, opts.index, opts.docType, opts.routing, opts.searchContextTTL)
+
+	if err != nil {
+		fmt.Println("Failed to create Client:", err)
+		os.Exit(1)
+	}
+
 	jsonQuery, err := jsonQuery(opts.query)
 
 	if err != nil {

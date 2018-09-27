@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -28,6 +29,52 @@ func (m *MockHTTPClient) Post(url, contentType string, body io.Reader) (*http.Re
 	args.ContentType = contentType
 	args.Body = body
 	return m.PostResponse.Response, m.PostResponse.Err
+}
+
+func TestNewClient(t *testing.T) {
+	mockHTTPClient := &MockHTTPClient{}
+	scenarios := []struct {
+		httpClient       HTTPClient
+		host             string
+		index            string
+		docType          string
+		routing          string
+		searchContextTTL string
+		err              error
+	}{
+		{mockHTTPClient, "invalid-url", "index", "docType", "routing", "searchContextTTL", fmt.Errorf("parse invalid-url: invalid URI for request")},
+		{mockHTTPClient, "http://localhost:9200", "index", "docType", "routing", "searchContextTTL", nil},
+	}
+
+	for _, s := range scenarios {
+		c, err := NewClient(mockHTTPClient, s.host, s.index, s.docType, s.routing, s.searchContextTTL)
+
+		if c != nil {
+			if c.host != s.host {
+				t.Errorf("Expected client host to be '%v', got '%v'", s.host, c.host)
+			}
+
+			if c.index != s.index {
+				t.Errorf("Expected client index to be '%v', got '%v'", s.index, c.index)
+			}
+
+			if c.docType != s.docType {
+				t.Errorf("Expected client docType to be '%v', got '%v'", s.docType, c.docType)
+			}
+
+			if c.routing != s.routing {
+				t.Errorf("Expected client routing to be '%v', got '%v'", s.routing, c.routing)
+			}
+
+			if c.searchContextTTL != s.searchContextTTL {
+				t.Errorf("Expected client searchContextTTL to be '%v', got '%v'", s.searchContextTTL, c.searchContextTTL)
+			}
+		}
+
+		if s.err != nil && (err == nil || s.err.Error() != err.Error()) {
+			t.Errorf("Expected error '%v', but got '%v'", s.err.Error(), err)
+		}
+	}
 }
 
 func TestSearchRequestURL(t *testing.T) {
@@ -103,7 +150,12 @@ func TestSearchRequestURL(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		esClient := NewClient(mockHTTPClient, scenario.host, scenario.index, scenario.docType, scenario.routing, scenario.searchContextTTL)
+		esClient, err := NewClient(mockHTTPClient, scenario.host, scenario.index, scenario.docType, scenario.routing, scenario.searchContextTTL)
+
+		if err != nil {
+			t.Fatalf("Failed to create Client: %v", err)
+		}
+
 		esClient.Search(map[string]interface{}{})
 
 		if scenario.expectedURL != mockHTTPClient.PostArgsReceived.URL {
@@ -119,8 +171,13 @@ func TestSearchWhenRequestFailed(t *testing.T) {
 		Body:       ioutil.NopCloser(strings.NewReader(`{}`))}
 	mockHTTPClient.PostResponse.Err = errors.New("request error")
 
-	esClient := NewClient(mockHTTPClient, "http://localhost:9200", "", "", "", "")
-	_, err := esClient.Search(map[string]interface{}{})
+	esClient, err := NewClient(mockHTTPClient, "http://localhost:9200", "", "", "", "")
+
+	if err != nil {
+		t.Fatalf("Failed to create Client: %v", err)
+	}
+
+	_, err = esClient.Search(map[string]interface{}{})
 
 	if err == nil {
 		t.Error("Expected search to fail")
@@ -137,8 +194,13 @@ func TestSearchWhenResponseIsNotValid(t *testing.T) {
 		StatusCode: 500,
 		Body:       ioutil.NopCloser(strings.NewReader(`{}`))}
 
-	esClient := NewClient(mockHTTPClient, "http://localhost:9200", "", "", "", "")
-	_, err := esClient.Search(map[string]interface{}{})
+	esClient, err := NewClient(mockHTTPClient, "http://localhost:9200", "", "", "", "")
+
+	if err != nil {
+		t.Fatalf("Failed to create Client: %v", err)
+	}
+
+	_, err = esClient.Search(map[string]interface{}{})
 
 	if err == nil {
 		t.Error("Expected search to fail")
@@ -167,8 +229,13 @@ func TestSearchWhenAShardFailed(t *testing.T) {
 		StatusCode: 200,
 		Body:       ioutil.NopCloser(strings.NewReader(incompleteResponse))}
 
-	esClient := NewClient(mockHTTPClient, "http://localhost:9200", "", "", "", "")
-	_, err := esClient.Search(map[string]interface{}{})
+	esClient, err := NewClient(mockHTTPClient, "http://localhost:9200", "", "", "", "")
+
+	if err != nil {
+		t.Fatalf("Failed to create Client: %v", err)
+	}
+
+	_, err = esClient.Search(map[string]interface{}{})
 
 	if err == nil {
 		t.Error("Expected search to fail")
@@ -197,8 +264,13 @@ func TestSearchWhenAShardIsMissing(t *testing.T) {
 		StatusCode: 200,
 		Body:       ioutil.NopCloser(strings.NewReader(incompleteResponse))}
 
-	esClient := NewClient(mockHTTPClient, "http://localhost:9200", "", "", "", "")
-	_, err := esClient.Search(map[string]interface{}{})
+	esClient, err := NewClient(mockHTTPClient, "http://localhost:9200", "", "", "", "")
+
+	if err != nil {
+		t.Fatalf("Failed to create Client: %v", err)
+	}
+
+	_, err = esClient.Search(map[string]interface{}{})
 
 	if err == nil {
 		t.Error("Expected search to fail")
@@ -227,7 +299,12 @@ func TestSearch(t *testing.T) {
 		StatusCode: 200,
 		Body:       ioutil.NopCloser(strings.NewReader(successfulResponse))}
 
-	esClient := NewClient(mockHTTPClient, "http://localhost:9200", "", "", "", "")
+	esClient, err := NewClient(mockHTTPClient, "http://localhost:9200", "", "", "", "")
+
+	if err != nil {
+		t.Fatalf("Failed to create Client: %v", err)
+	}
+
 	rawQuery := `{"query":{"match_all":{}}}`
 	var query map[string]interface{}
 	json.Unmarshal([]byte(rawQuery), &query)
@@ -268,7 +345,12 @@ func TestScrollURL(t *testing.T) {
 	searchContextTTL := "1m"
 	expectedURL := "http://localhost:9200/_search/scroll"
 
-	esClient := NewClient(mockHTTPClient, host, index, docType, routing, searchContextTTL)
+	esClient, err := NewClient(mockHTTPClient, host, index, docType, routing, searchContextTTL)
+
+	if err != nil {
+		t.Fatalf("Failed to create Client: %v", err)
+	}
+
 	esClient.Scroll("aScrollId")
 
 	if expectedURL != mockHTTPClient.PostArgsReceived.URL {
@@ -283,8 +365,13 @@ func TestScrollWhenRequestFailed(t *testing.T) {
 		Body:       ioutil.NopCloser(strings.NewReader(`{}`))}
 	mockHTTPClient.PostResponse.Err = errors.New("request error")
 
-	esClient := NewClient(mockHTTPClient, "http://localhost:9200", "", "", "", "")
-	_, err := esClient.Scroll("aScrollId")
+	esClient, err := NewClient(mockHTTPClient, "http://localhost:9200", "", "", "", "")
+
+	if err != nil {
+		t.Fatalf("Failed to create Client: %v", err)
+	}
+
+	_, err = esClient.Scroll("aScrollId")
 
 	if err == nil {
 		t.Error("Expected scroll to fail")
@@ -313,7 +400,12 @@ func TestScroll(t *testing.T) {
 		StatusCode: 200,
 		Body:       ioutil.NopCloser(strings.NewReader(successfulResponse))}
 
-	esClient := NewClient(mockHTTPClient, "http://localhost:9200", "", "", "", "1m")
+	esClient, err := NewClient(mockHTTPClient, "http://localhost:9200", "", "", "", "1m")
+
+	if err != nil {
+		t.Fatalf("Failed to create Client: %v", err)
+	}
+
 	resp, err := esClient.Scroll("aScrollId")
 
 	if err != nil {

@@ -61,8 +61,14 @@ type ESSearchResponse struct {
 }
 
 // NewClient returns a new Client
-func NewClient(httpClient HTTPClient, host, index, docType, routing, searchContextTTL string) *Client {
-	return &Client{httpClient, host, index, docType, routing, searchContextTTL}
+func NewClient(httpClient HTTPClient, host, index, docType, routing, searchContextTTL string) (*Client, error) {
+	_, err := url.ParseRequestURI(host)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &Client{httpClient, host, index, docType, routing, searchContextTTL}, nil
 }
 
 // Search performs a search request using the given query
