@@ -4,7 +4,29 @@
 
 Command line tool to export documents from Elasticsearch using sliced scroll.
 
-Also useful to test the speed of scrolling using different combinations of params:
+esexport will use one goroutine per slice to retrieve documents concurrently.
+
+Here's an example of how the usage of slices can improve search/scrolling from ES:
+
+```
+$ time esexport -host $es_host -query '{"_source":false,"size":5000}' -output ids
+Progress: [76148/76148] 100%
+
+real	0m11.505s
+user	0m0.367s
+sys	0m0.084s
+
+$ time esexport -sliceSize 3 -host $es_host -query '{"_source":false,"size":5000}' -output ids 
+Progress: [76148/76148] 100%
+
+real	0m5.505s
+user	0m0.397s
+sys	0m0.067s
+```
+
+*Results will vary depending on your cluster, shards configuration and whatnot.*
+
+This tool is also useful to test the speed of scrolling using different combinations of params:
 
 * number of slices
 * different slice fields
@@ -14,9 +36,11 @@ See [Debugging Cursors](#debugging-cursors).
 
 # Installation
 
-For now you need to install go and use `go get -u github.com/alissonsales/esexport`
+Find the latest binary from the [releases](https://github.com/alissonsales/esexport/releases) page.
 
-TODO: provide binaries on /releases and homebrew formula
+You can also use `go get -u github.com/alissonsales/esexport`. Make sure you have go 1.9 or newer installed.
+
+TODO: Publish to homebrew
 
 # Usage
 
