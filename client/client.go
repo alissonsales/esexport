@@ -8,7 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"strings"
+	"net/url"
 
 	"github.com/alissonsales/esexport/debug"
 )
@@ -61,8 +61,14 @@ type ESSearchResponse struct {
 }
 
 // NewClient returns a new Client
-func NewClient(httpClient HTTPClient, host, index, docType, routing, searchContextTTL string) *Client {
-	return &Client{httpClient, host, index, docType, routing, searchContextTTL}
+func NewClient(httpClient HTTPClient, host, index, docType, routing, searchContextTTL string) (*Client, error) {
+	_, err := url.ParseRequestURI(host)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &Client{httpClient, host, index, docType, routing, searchContextTTL}, nil
 }
 
 // Search performs a search request using the given query
@@ -141,36 +147,38 @@ func (c *Client) validateShardsResponse(searchResponse *ESSearchResponse) (err e
 	return err
 }
 
-func (c *Client) searchURL() (url string) {
-	urlParts := []string{c.host}
+func (c *Client) searchURL() string {
+	var buffer bytes.Buffer
+	buffer.WriteString(c.host)
 
 	if c.index != "" {
-		urlParts = append(urlParts, c.index)
+		buffer.WriteString("/")
+		buffer.WriteString(c.index)
 	} else if c.docType != "" {
-		urlParts = append(urlParts, "*")
+		buffer.WriteString("/*")
 	}
 
 	if c.docType != "" {
-		urlParts = append(urlParts, c.docType)
+		buffer.WriteString("/")
+		buffer.WriteString(c.docType)
 	}
 
-	urlParts = append(urlParts, "_search")
+	buffer.WriteString("/_search")
 
-	queryParams := []string{}
+	queryParams := url.Values{}
 
 	if c.searchContextTTL != "" {
-		queryParams = append(queryParams, "scroll="+c.searchContextTTL)
+		queryParams.Set("scroll", c.searchContextTTL)
 	}
 
 	if c.routing != "" {
-		queryParams = append(queryParams, "routing="+c.routing)
+		queryParams.Set("routing", c.routing)
 	}
-
-	url = strings.Join(urlParts, "/")
 
 	if len(queryParams) > 0 {
-		url = fmt.Sprintf("%s?%s", url, strings.Join(queryParams, "&"))
+		buffer.WriteString("?")
+		buffer.WriteString(queryParams.Encode())
 	}
 
-	return url
+	return buffer.String()
 }
